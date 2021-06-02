@@ -5,8 +5,8 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
-#ifndef DECTECTORS_HPP
-#define DECTECTORS_HPP
+#ifndef SPOTTERS_HPP
+#define SPOTTERS_HPP
 
 namespace tb
 {
@@ -18,7 +18,7 @@ public:
 
     virtual ~SpottedObject() = default;
 
-    void addPoint(const cv::Point &point);
+    void addPoint(cv::Point point);
 
     cv::Point getCenter() const;
 
@@ -44,15 +44,14 @@ public:
 
 class QRSpottedObject: public SpottedObject
 {
+public:
+    explicit QRSpottedObject(std::string &&code);
+
     const std::string &getCode() const;
 
 private:
-
     std::string code;
-
     friend class QRCodeSpotter;
-public:
-    explicit QRSpottedObject(std::string &&code);
 };
 
 class QRCodeSpotter: public Spotter
@@ -84,4 +83,4 @@ private:
 
 }
 
-#endif //DECTECTORS_HPP
+#endif //SPOTTERS_HPP

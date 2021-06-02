@@ -8,9 +8,9 @@
 namespace tb
 {
 
-void SpottedObject::addPoint(const cv::Point &point)
+void SpottedObject::addPoint(cv::Point point)
 {
-    this->points.emplace_back(point);
+    this->points.emplace_back(std::move(point));
 }
 
 cv::Point SpottedObject::getCenter() const
@@ -19,13 +19,21 @@ cv::Point SpottedObject::getCenter() const
         throw std::length_error("empty object");
     }
 
-    cv::Point center;
+    cv::Point center(0, 0);
 
     for (const auto &item : this->points) {
         center += item;
     }
 
-    return center;
+    return center / (double) this->points.size();
+}
+std::vector<cv::Point> &SpottedObject::getPoints()
+{
+    return points;
+}
+const std::vector<cv::Point> &SpottedObject::getPoints() const
+{
+    return points;
 }
 
 bool Spotter::acceptsGrayImage() const
