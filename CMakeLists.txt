@@ -9,6 +9,6 @@ add_executable(TriggerBox
         EventSource.cpp)
 
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV "4.5.2" REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(TriggerBox ${OpenCV_LIBS})
