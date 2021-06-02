@@ -8,6 +8,8 @@
 #ifndef DECTECTORS_HPP
 #define DECTECTORS_HPP
 
+namespace tb
+{
 
 class SpottedObject
 {
@@ -20,16 +22,22 @@ public:
 
     cv::Point getCenter() const;
 
+    std::vector<cv::Point> &getPoints();
+
+    const std::vector<cv::Point> &getPoints() const;
+
 private:
     std::vector<cv::Point> points;
 };
+
+using SpottedObjectArray = std::vector<std::unique_ptr<SpottedObject>>;
 
 class Spotter
 {
 public:
     virtual ~Spotter() = default;
 
-    virtual std::vector<std::unique_ptr<SpottedObject>> detect(const cv::Mat &image) = 0;
+    virtual SpottedObjectArray detect(const cv::Mat &image) = 0;
 
     virtual bool acceptsGrayImage() const;
 };
@@ -52,7 +60,7 @@ class QRCodeSpotter: public Spotter
 public:
     QRCodeSpotter();
 
-    std::vector<std::unique_ptr<SpottedObject>> detect(const cv::Mat &image) override;
+    SpottedObjectArray detect(const cv::Mat &image) override;
 
     bool acceptsGrayImage() const override;
 private:
@@ -65,7 +73,7 @@ class FaceSpotter: public Spotter
 public:
     FaceSpotter();
 
-    std::vector<std::unique_ptr<SpottedObject>> detect(const cv::Mat &image) override;
+    SpottedObjectArray detect(const cv::Mat &image) override;
 
     bool acceptsGrayImage() const override;
 
@@ -73,5 +81,7 @@ private:
     cv::CascadeClassifier classifier;
 
 };
+
+}
 
 #endif //DECTECTORS_HPP
