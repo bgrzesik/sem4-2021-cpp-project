@@ -8,7 +8,6 @@ add_executable(TriggerBox
         Spotters.cpp
         EventSource.cpp)
 
-SET(OpenCV_DIR /usr/local/Cellar/opencv/4.5.2_4/lib/cmake/opencv4)
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
