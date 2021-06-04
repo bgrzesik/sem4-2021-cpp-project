@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 3.16)
 project(TriggerBox)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 
 add_executable(TriggerBox
         main.cpp
         Constants.cpp
         Spotters.cpp
-        EventSource.cpp)
+        Pipeline.cpp
+        FiltersNodes.cpp
+        PipelineNode.cpp
+        )
 
 
 find_package(OpenCV "4.5.2" REQUIRED)

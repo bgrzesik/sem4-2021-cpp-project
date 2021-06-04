@@ -14,6 +14,8 @@ public:
     static const cv::Scalar red;
     static const cv::Scalar green;
     static const cv::Scalar black;
+    static const cv::Scalar white;
+    static const cv::Scalar magenta;
 };
 
 }

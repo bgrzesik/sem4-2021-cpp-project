@@ -2,6 +2,7 @@
 // Created by Bartłomiej Grzesik on 01/06/2021.
 //
 #include <exception>
+#include <utility>
 
 #include "Spotters.hpp"
 
@@ -36,10 +37,6 @@ const std::vector<cv::Point> &SpottedObject::getPoints() const
     return points;
 }
 
-bool Spotter::acceptsGrayImage() const
-{
-    return true;
-}
 
 const std::string &QRSpottedObject::getCode() const
 {
@@ -47,43 +44,38 @@ const std::string &QRSpottedObject::getCode() const
 }
 
 QRSpottedObject::QRSpottedObject(std::string &&code)
-    : code(code)
+    : code(std::move(code))
 {
 }
 
 QRCodeSpotter::QRCodeSpotter()
     : detector()
 {
-}
-
-SpottedObjectArray QRCodeSpotter::detect(const cv::Mat &image)
-{
-    std::vector<std::unique_ptr<SpottedObject>> objects;
-
-    std::vector<std::string> codes;
-    std::vector<cv::Point> points;
-
-    this->detector.detectAndDecodeMulti(image, codes, points);
-
-    while (!codes.empty()) {
-        auto object = std::make_unique<QRSpottedObject>(std::move(codes.back()));
-        codes.pop_back();
-
-        for (int i = 0; i < 4; ++i) {
-            object->addPoint(points.back());
-            points.pop_back();
-        }
-
-        objects.emplace_back(std::move(object));
-    }
-
-
-    return std::move(objects);
+    this->codes.reserve(reserveCodeCount);
+    this->points.reserve(reserveCodeCount * 4);
 }
 
 bool QRCodeSpotter::acceptsGrayImage() const
 {
     return true;
+}
+void QRCodeSpotter::process(const cv::Mat *image)
+{
+    this->detector.detectAndDecodeMulti(*image, this->codes, this->points);
+
+    for (int i = 0; i < this->codes.size(); ++i) {
+        QRSpottedObject *mem = this->object_pool.malloc();
+        auto *object = new (mem) QRSpottedObject(std::move(this->codes[i]));
+
+        for (int j = 0; j < 4; ++j) {
+            object->addPoint(this->points[i * 4 + j]);
+        }
+
+        this->next(object);
+    }
+
+    this->codes.clear();
+    this->points.clear();
 }
 
 static constexpr char FaceHaarCascadeClassifier[] = "haarcascades/haarcascade_frontalface_default.xml";
@@ -93,24 +85,19 @@ FaceSpotter::FaceSpotter()
 {
 }
 
-SpottedObjectArray FaceSpotter::detect(const cv::Mat &image)
+void FaceSpotter::process(const cv::Mat *image)
 {
-    SpottedObjectArray objects;
-
     std::vector<cv::Rect> faces;
-    this->classifier.detectMultiScale(image, faces);
+    this->classifier.detectMultiScale(*image, faces);
 
     for (const auto &face : faces) {
-        auto object = std::make_unique<SpottedObject>();
+        auto object = this->object_pool.construct();
 
         object->addPoint(face.tl());
         object->addPoint(face.br());
 
-        objects.emplace_back(std::move(object));
+        this->next(object);
     }
-
-
-    return std::move(objects);
 }
 
 bool FaceSpotter::acceptsGrayImage() const

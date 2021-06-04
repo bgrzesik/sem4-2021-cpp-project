@@ -4,6 +4,8 @@
 
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <boost/pool/object_pool.hpp>
+#include "PipelineNode.hpp"
 
 #ifndef SPOTTERS_HPP
 #define SPOTTERS_HPP
@@ -30,16 +32,38 @@ private:
     std::vector<cv::Point> points;
 };
 
-using SpottedObjectArray = std::vector<std::unique_ptr<SpottedObject>>;
-
-class Spotter
+//class BaseSpotter : public PipelineNode<const cv::Mat *, const SpottedObject *>
+template<class Object = SpottedObject>
+class BaseSpotter : public PipelineNode<const cv::Mat *, const Object *>
+//class BaseSpotter : public PipelineNode<const cv::Mat *, const Object *>
 {
 public:
-    virtual ~Spotter() = default;
+    ~BaseSpotter() override = default;
 
-    virtual SpottedObjectArray detect(const cv::Mat &image) = 0;
+    virtual bool acceptsGrayImage() const
+    {
+        return false;
+    }
 
-    virtual bool acceptsGrayImage() const;
+    void cleanup() override
+    {
+        for (const auto &item : spotted_objects) {
+            auto *cast_obj = (Object *) item;
+            this->object_pool.free(cast_obj);
+        }
+
+        spotted_objects.clear();
+    }
+
+protected:
+    boost::object_pool<Object> object_pool;
+    std::vector<const SpottedObject *> spotted_objects;
+
+    void next(const Object *object) override
+    {
+        PipelineNode<const cv::Mat *, const Object *>::next(object);
+        spotted_objects.push_back(object);
+    }
 };
 
 class QRSpottedObject: public SpottedObject
@@ -51,30 +75,41 @@ public:
 
 private:
     std::string code;
-    friend class QRCodeSpotter;
 };
 
-class QRCodeSpotter: public Spotter
+using Spotter = BaseSpotter<SpottedObject>;
+
+class QRCodeSpotter: public BaseSpotter<QRSpottedObject>
 {
 public:
+    static constexpr int reserveCodeCount = 4;
+
     QRCodeSpotter();
 
-    SpottedObjectArray detect(const cv::Mat &image) override;
-
     bool acceptsGrayImage() const override;
+
+protected:
+    void process(const cv::Mat *image) override;
+
 private:
+
     cv::QRCodeDetector detector;
+
+    std::vector<std::string> codes;
+    std::vector<cv::Point> points;
 
 };
 
-class FaceSpotter: public Spotter
+class FaceSpotter: public BaseSpotter<SpottedObject>
 {
 public:
     FaceSpotter();
 
-    SpottedObjectArray detect(const cv::Mat &image) override;
-
     bool acceptsGrayImage() const override;
+
+protected:
+    void process(const cv::Mat *image) override;
+
 
 private:
     cv::CascadeClassifier classifier;
