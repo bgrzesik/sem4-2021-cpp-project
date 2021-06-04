@@ -61,10 +61,9 @@ class PipelineNode: public PipelineInputNode<Input>
 public:
     virtual ~PipelineNode() = default;
 
-    void outputTo(std::shared_ptr<PipelineInputNode<Output>> node)
+    void outputsTo(std::shared_ptr<PipelineInputNode<Output>> node)
     {
-        auto cast = std::static_pointer_cast<tb::PipelineInputNode<Output>>(node);
-        this->adjacent.push_back(std::move(node));
+        this->adjacent.push_back(node);
     }
 
     template<
@@ -73,9 +72,10 @@ public:
         typename std::enable_if<std::is_base_of<tb::PipelineInputNode<NodeInput>, Node>::value, bool>::type = true,
         typename std::enable_if<std::is_convertible<Output, NodeInput>::value, bool>::type = true
     >
-    void outputTo(std::shared_ptr<Node> node)
+    void outputsTo(std::shared_ptr<Node> node)
     {
-        this->outputTo(std::make_shared<ConverterNode<Output, NodeInput>>(node));
+        auto cast = std::reinterpret_pointer_cast<tb::PipelineInputNode<Output>>(node);
+        this->outputsTo(cast);
     }
 
 protected:

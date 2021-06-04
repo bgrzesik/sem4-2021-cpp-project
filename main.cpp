@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 {
     cv::setUseOptimized(true);
     cv::VideoCapture cap;
-//    cap.open(0);
+    cap.open(0);
 
 // gst-launch-1.0 -ve v4l2src device=/dev/video0 ! 'video/x-raw,width=640,height=480' !  x264enc pass=qual quantizer=20 tune=zerolatency ! rtph264pay ! udpsink host=192.168.0.171 port=1234
 //    cap.open("udpsrc port=1234 ! application/x-rtp,payload=127 ! rtph264depay ! h264parse ! avdec_h264 ! autovideoconvert ! appsink sync=false", cv::CAP_GSTREAMER);
@@ -56,9 +56,9 @@ int main(int argc, char **argv)
 // raspivid -t 0 -hf -n -h 768 -w 1080 -fps 5 -o - | nc -lk -p 5001
 //    cap.open("tcpclientsrc host=192.168.0.178 port=5001 ! queue2 max-size-buffers=1 ! decodebin ! autovideoconvert ! appsink sync=false", cv::CAP_GSTREAMER);
 
-    cap.open(
-        " rtspsrc location=rtsp://192.168.0.178:8554/test latency=0 buffer-mode=auto ! decodebin ! videoconvert ! appsink sync=false",
-        cv::CAP_GSTREAMER);
+//    cap.open(
+//        " rtspsrc location=rtsp://192.168.0.178:8554/test latency=0 buffer-mode=auto ! decodebin ! videoconvert ! appsink sync=false",
+//        cv::CAP_GSTREAMER);
 
     if (!cap.isOpened()) {
         return -1;
@@ -75,11 +75,11 @@ int main(int argc, char **argv)
     auto face_spotter = std::make_shared<tb::FaceSpotter>();
     auto debug_drawer = std::make_shared<DebugDrawer>(&frame);
 
-    framesNode.outputTo(qr_spotter);
-    framesNode.outputTo(face_spotter);
+    framesNode.outputsTo(qr_spotter);
+    framesNode.outputsTo(face_spotter);
 
-    qr_spotter->outputTo(debug_drawer);
-    face_spotter->outputTo(debug_drawer);
+    qr_spotter->outputsTo(debug_drawer);
+    face_spotter->outputsTo(debug_drawer);
 
     auto last_frame = std::chrono::system_clock::now();
     long fps = 0;
