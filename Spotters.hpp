@@ -13,6 +13,13 @@
 namespace tb
 {
 
+struct Frame
+{
+    cv::Mat rgb;
+    cv::Mat hsv;
+    cv::Mat gray;
+};
+
 class SpottedObject
 {
 public:
@@ -20,13 +27,11 @@ public:
 
     virtual ~SpottedObject() = default;
 
-    void addPoint(cv::Point point);
-
-    cv::Point getCenter() const;
+    [[nodiscard]] cv::Point2d getCenter() const;
 
     std::vector<cv::Point> &getPoints();
 
-    const std::vector<cv::Point> &getPoints() const;
+    [[nodiscard]] const std::vector<cv::Point> &getPoints() const;
 
 private:
     std::vector<cv::Point> points;
@@ -34,16 +39,11 @@ private:
 
 //class BaseSpotter : public PipelineNode<const cv::Mat *, const SpottedObject *>
 template<class Object = SpottedObject>
-class BaseSpotter : public PipelineNode<const cv::Mat *, const Object *>
+class BaseSpotter: public PipelineNode<const Frame *, const Object *>
 //class BaseSpotter : public PipelineNode<const cv::Mat *, const Object *>
 {
 public:
     ~BaseSpotter() override = default;
-
-    virtual bool acceptsGrayImage() const
-    {
-        return false;
-    }
 
     void cleanup() override
     {
@@ -61,7 +61,7 @@ protected:
 
     void next(const Object *object) override
     {
-        PipelineNode<const cv::Mat *, const Object *>::next(object);
+        PipelineNode<const Frame *, const Object *>::next(object);
         spotted_objects.push_back(object);
     }
 };
@@ -71,7 +71,7 @@ class QRSpottedObject: public SpottedObject
 public:
     explicit QRSpottedObject(std::string &&code);
 
-    const std::string &getCode() const;
+    [[nodiscard]] const std::string &getCode() const;
 
 private:
     std::string code;
@@ -86,10 +86,8 @@ public:
 
     QRCodeSpotter();
 
-    bool acceptsGrayImage() const override;
-
 protected:
-    void process(const cv::Mat *image) override;
+    void process(const Frame *frame) override;
 
 private:
 
@@ -105,14 +103,34 @@ class FaceSpotter: public BaseSpotter<SpottedObject>
 public:
     FaceSpotter();
 
-    bool acceptsGrayImage() const override;
-
 protected:
-    void process(const cv::Mat *image) override;
+    void process(const Frame *frame) override;
 
 
 private:
     cv::CascadeClassifier classifier;
+
+};
+
+class ColorSpotter: public BaseSpotter<SpottedObject>
+{
+public:
+    ColorSpotter(cv::Scalar hsv_min,
+                 cv::Scalar hsv_max,
+                 int min_area = 2000,
+                 cv::Size gauss_kernel = cv::Size(31, 31),
+                 int threshold = 60);
+
+protected:
+    void process(const Frame *frame) override;
+
+private:
+    cv::Mat mask;
+    cv::Scalar hsv_min;
+    cv::Scalar hsv_max;
+    int min_area;
+    cv::Size gauss_kernel;
+    int threshold;
 
 };
 

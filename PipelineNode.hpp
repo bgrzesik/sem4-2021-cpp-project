@@ -12,9 +12,6 @@
 namespace tb
 {
 
-template<typename Input, typename Output>
-class ConverterNode;
-
 template<typename Input>
 class PipelineInputNode
 {

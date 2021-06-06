@@ -9,25 +9,16 @@
 namespace tb
 {
 
-void SpottedObject::addPoint(cv::Point point)
-{
-    this->points.emplace_back(std::move(point));
-}
-
-cv::Point SpottedObject::getCenter() const
+cv::Point2d SpottedObject::getCenter() const
 {
     if (this->points.empty()) {
         throw std::length_error("empty object");
     }
 
-    cv::Point center(0, 0);
-
-    for (const auto &item : this->points) {
-        center += item;
-    }
-
-    return center / (double) this->points.size();
+    auto moments = cv::moments(this->points);
+    return cv::Point2d(moments.m10 / moments.m00, moments.m01 / moments.m00);
 }
+
 std::vector<cv::Point> &SpottedObject::getPoints()
 {
     return points;
@@ -36,7 +27,6 @@ const std::vector<cv::Point> &SpottedObject::getPoints() const
 {
     return points;
 }
-
 
 const std::string &QRSpottedObject::getCode() const
 {
@@ -55,20 +45,16 @@ QRCodeSpotter::QRCodeSpotter()
     this->points.reserve(reserveCodeCount * 4);
 }
 
-bool QRCodeSpotter::acceptsGrayImage() const
+void QRCodeSpotter::process(const Frame *frame)
 {
-    return true;
-}
-void QRCodeSpotter::process(const cv::Mat *image)
-{
-    this->detector.detectAndDecodeMulti(*image, this->codes, this->points);
+    this->detector.detectAndDecodeMulti(frame->gray, this->codes, this->points);
 
     for (int i = 0; i < this->codes.size(); ++i) {
         QRSpottedObject *mem = this->object_pool.malloc();
-        auto *object = new (mem) QRSpottedObject(std::move(this->codes[i]));
+        auto *object = new(mem) QRSpottedObject(std::move(this->codes[i]));
 
         for (int j = 0; j < 4; ++j) {
-            object->addPoint(this->points[i * 4 + j]);
+            object->getPoints().emplace_back(this->points[i * 4 + j]);
         }
 
         this->next(object);
@@ -85,24 +71,53 @@ FaceSpotter::FaceSpotter()
 {
 }
 
-void FaceSpotter::process(const cv::Mat *image)
+void FaceSpotter::process(const Frame *frame)
 {
     std::vector<cv::Rect> faces;
-    this->classifier.detectMultiScale(*image, faces);
+    this->classifier.detectMultiScale(frame->gray, faces);
 
     for (const auto &face : faces) {
         auto object = this->object_pool.construct();
 
-        object->addPoint(face.tl());
-        object->addPoint(face.br());
+        object->getPoints().emplace_back(face.x, face.y);
+        object->getPoints().emplace_back(face.x + face.width, face.y);
+        object->getPoints().emplace_back(face.x + face.width, face.y + face.width);
+        object->getPoints().emplace_back(face.x, face.y + face.width);
 
         this->next(object);
     }
 }
 
-bool FaceSpotter::acceptsGrayImage() const
+ColorSpotter::ColorSpotter(cv::Scalar hsv_min, cv::Scalar hsv_max, int min_area, cv::Size gauss_kernel, int threshold)
+    : hsv_min(std::move(hsv_min)), hsv_max(std::move(hsv_max)), min_area(min_area),
+      gauss_kernel(std::move(gauss_kernel)), threshold(threshold)
 {
-    return true;
+}
+
+void ColorSpotter::process(const Frame *frame)
+{
+    cv::inRange(frame->hsv, this->hsv_min, this->hsv_max, this->mask);
+    cv::GaussianBlur(this->mask, this->mask, this->gauss_kernel, 0);
+    cv::threshold(this->mask, this->mask, this->threshold, 255, cv::THRESH_BINARY);
+
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+
+    cv::findContours(mask,
+                     contours,
+                     hierarchy,
+                     cv::RETR_TREE,
+                     cv::CHAIN_APPROX_SIMPLE);
+
+    for (auto &contour : contours) {
+        if (cv::contourArea(contour) <= this->min_area) {
+            continue;
+        }
+
+        auto object = this->object_pool.construct();
+        object->getPoints() = std::move(contour);
+        this->next(object);
+    }
 }
 
 }

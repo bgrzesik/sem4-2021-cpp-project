@@ -13,13 +13,13 @@
 class DebugDrawer: public tb::PipelineInputNode<const tb::SpottedObject *>
 {
 public:
-    explicit DebugDrawer(cv::Mat *frame)
+    explicit DebugDrawer(tb::Frame *frame)
         : frame(frame)
     {
     }
 
 protected:
-    cv::Mat *frame;
+    tb::Frame *frame;
 
     void process(const tb::SpottedObject *object) override
     {
@@ -31,15 +31,15 @@ protected:
         auto center = object->getCenter();
 
         if (center.inside(box)) {
-            cv::circle(*frame, center, 7, tb::Colors::red, 10);
-            cv::rectangle(*frame, rect, tb::Colors::red, 2);
+            cv::circle(frame->rgb, center, 7, tb::Colors::red, 10);
+            cv::rectangle(frame->rgb, rect, tb::Colors::red, 2);
         } else {
-            cv::circle(*frame, center, 7, tb::Colors::green, 10);
-            cv::rectangle(*frame, rect, tb::Colors::green, 2);
+            cv::circle(frame->rgb, center, 7, tb::Colors::green, 10);
+            cv::rectangle(frame->rgb, rect, tb::Colors::green, 2);
         }
 
         if (auto *qr_obj = dynamic_cast<const tb::QRSpottedObject *>(object)) {
-            cv::putText(*frame, qr_obj->getCode(), center, cv::FONT_HERSHEY_SIMPLEX, 1.0, tb::Colors::magenta, 3);
+            cv::putText(frame->rgb, qr_obj->getCode(), center, cv::FONT_HERSHEY_SIMPLEX, 1.0, tb::Colors::magenta, 3);
         }
     }
 };
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 //    cap.open("tcpclientsrc host=192.168.0.178 port=5001 ! queue2 max-size-buffers=1 ! decodebin ! autovideoconvert ! appsink sync=false", cv::CAP_GSTREAMER);
 
 //    cap.open(
-//        " rtspsrc location=rtsp://192.168.0.178:8554/test latency=0 buffer-mode=auto ! decodebin ! videoconvert ! appsink sync=false",
+//        "rtspsrc location=rtsp://192.168.0.178:8554/test latency=0 buffer-mode=auto ! decodebin ! videoconvert ! appsink sync=false",
 //        cv::CAP_GSTREAMER);
 
     if (!cap.isOpened()) {
@@ -67,26 +67,32 @@ int main(int argc, char **argv)
     cv::namedWindow("edges", 1);
 
     cv::Rect box(100, 100, 200, 200);
-    cv::Mat frame;
-    cv::Mat gray;
 
-    tb::BroadcasterNode<const cv::Mat *> framesNode;
+    tb::Frame frame;
+
+    tb::BroadcasterNode<const tb::Frame *> framesNode;
     auto qr_spotter = std::make_shared<tb::QRCodeSpotter>();
     auto face_spotter = std::make_shared<tb::FaceSpotter>();
+    auto color_spotter = std::make_shared<tb::ColorSpotter>(cv::Scalar(145, 60, 60), cv::Scalar(155, 255, 255));
     auto debug_drawer = std::make_shared<DebugDrawer>(&frame);
 
     framesNode.outputsTo(qr_spotter);
     framesNode.outputsTo(face_spotter);
+    framesNode.outputsTo(color_spotter);
 
     qr_spotter->outputsTo(debug_drawer);
     face_spotter->outputsTo(debug_drawer);
+    color_spotter->outputsTo(debug_drawer);
 
     auto last_frame = std::chrono::system_clock::now();
     long fps = 0;
 
     while (true) {
-        cap >> frame;
+        cap >> frame.rgb;
         fps += 1;
+
+        cv::cvtColor(frame.rgb, frame.hsv, cv::COLOR_BGR2HSV);
+        cv::cvtColor(frame.rgb, frame.gray, cv::COLOR_BGR2GRAY);
 
         auto now = std::chrono::system_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_frame).count() >= 1000) {
@@ -95,21 +101,21 @@ int main(int argc, char **argv)
             fps = 0;
         }
 
-        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 
-        framesNode.addPending(&gray);
+        framesNode.addPending(&frame);
         framesNode.processPending();
         qr_spotter->processPending();
         face_spotter->processPending();
+        color_spotter->processPending();
 
         debug_drawer->processPending();
 
-        cv::rectangle(frame, box, tb::Colors::red, 0);
+        cv::rectangle(frame.rgb, box, tb::Colors::red, 0);
 
         qr_spotter->cleanup();
         face_spotter->cleanup();
 
-        cv::imshow("edges", frame);
+        cv::imshow("edges", frame.rgb);
         if (cv::waitKey(30) >= 0) break;
     }
 
