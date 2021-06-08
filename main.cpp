@@ -8,7 +8,9 @@
 #include "Spotters.hpp"
 
 #include "PipelineNode.hpp"
-#include "SingleThreadedContext.hpp"
+//#include "SingleThreadedContext.hpp"
+#include "MultiThreadedContext.hpp"
+#include "FiltersNodes.hpp"
 
 class DebugDrawer: public tb::PipelineInputNode<const tb::SpottedObject *>
 {
@@ -70,11 +72,12 @@ int main(int argc, char **argv)
 
     tb::Frame frame;
 
-    auto context = tb::SingleThreadedContext();
+    auto context = tb::MultiThreadedContext();
     auto framesNode = std::make_shared<tb::BroadcasterNode<const tb::Frame *>>();
     auto qr_spotter = std::make_shared<tb::QRCodeSpotter>();
     auto face_spotter = std::make_shared<tb::FaceSpotter>();
     auto color_spotter = std::make_shared<tb::ColorSpotter>(cv::Scalar(145, 60, 60), cv::Scalar(155, 255, 255));
+    auto rect_filter = std::make_shared<tb::RectangleFilter>(box, tb::CollisionType::BoundingBoxOverlap);
     auto debug_drawer = std::make_shared<DebugDrawer>(&frame);
 
     auto sink = tb::broadcast<const tb::SpottedObject*>();
@@ -83,7 +86,7 @@ int main(int argc, char **argv)
     framesNode | face_spotter | sink;
     framesNode | color_spotter | sink;
 
-    sink | debug_drawer;
+    sink | rect_filter | debug_drawer;
 
     auto last_frame = std::chrono::system_clock::now();
     long fps = 0;

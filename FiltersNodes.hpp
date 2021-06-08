@@ -29,6 +29,25 @@ protected:
     virtual bool filter(Type input) = 0;
 };
 
+enum class CollisionType {
+    CenterInside,
+    SinglePoint,
+    BoundingBoxOverlap,
+};
+
+class RectangleFilter : public FilterNode<const SpottedObject *> {
+
+public:
+    RectangleFilter(cv::Rect rect, CollisionType type);
+
+protected:
+    bool filter(const SpottedObject *object) override;
+
+private:
+    cv::Rect rect;
+    CollisionType type;
+};
+
 }
 
 #endif //TRIGGERFILTERS_HPP
