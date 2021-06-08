@@ -13,16 +13,20 @@
 namespace tb
 {
 
-class FilterNode: public tb::PipelineNode<const tb::SpottedObject *, const tb::SpottedObject *>
+template<typename Type>
+class FilterNode: public tb::PipelineNode<Type, Type>
 {
 public:
     ~FilterNode() override = default;
 
 protected:
-    void process(const SpottedObject *input) final;
+    void process(Type input, PipelineContext *ctx) final {
+        if (filter(input)) {
+            this->next(ctx, input);
+        }
+    }
 
-    virtual bool filter(const SpottedObject *input) = 0;
-
+    virtual bool filter(Type input) = 0;
 };
 
 }

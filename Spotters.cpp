@@ -45,7 +45,7 @@ QRCodeSpotter::QRCodeSpotter()
     this->points.reserve(reserveCodeCount * 4);
 }
 
-void QRCodeSpotter::process(const Frame *frame)
+void QRCodeSpotter::process(const Frame *frame, PipelineContext *ctx)
 {
     this->detector.detectAndDecodeMulti(frame->gray, this->codes, this->points);
 
@@ -57,7 +57,7 @@ void QRCodeSpotter::process(const Frame *frame)
             object->getPoints().emplace_back(this->points[i * 4 + j]);
         }
 
-        this->next(object);
+        this->next(ctx, object);
     }
 
     this->codes.clear();
@@ -71,7 +71,7 @@ FaceSpotter::FaceSpotter()
 {
 }
 
-void FaceSpotter::process(const Frame *frame)
+void FaceSpotter::process(const Frame *frame, PipelineContext *ctx)
 {
     std::vector<cv::Rect> faces;
     this->classifier.detectMultiScale(frame->gray, faces);
@@ -84,7 +84,7 @@ void FaceSpotter::process(const Frame *frame)
         object->getPoints().emplace_back(face.x + face.width, face.y + face.width);
         object->getPoints().emplace_back(face.x, face.y + face.width);
 
-        this->next(object);
+        this->next(ctx, object);
     }
 }
 
@@ -94,7 +94,7 @@ ColorSpotter::ColorSpotter(cv::Scalar hsv_min, cv::Scalar hsv_max, int min_area,
 {
 }
 
-void ColorSpotter::process(const Frame *frame)
+void ColorSpotter::process(const Frame *frame, PipelineContext *ctx)
 {
     cv::inRange(frame->hsv, this->hsv_min, this->hsv_max, this->mask);
     cv::GaussianBlur(this->mask, this->mask, this->gauss_kernel, 0);
@@ -116,7 +116,7 @@ void ColorSpotter::process(const Frame *frame)
 
         auto object = this->object_pool.construct();
         object->getPoints() = std::move(contour);
-        this->next(object);
+        this->next(ctx, object);
     }
 }
 

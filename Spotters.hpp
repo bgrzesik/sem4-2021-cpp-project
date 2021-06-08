@@ -55,13 +55,18 @@ public:
         spotted_objects.clear();
     }
 
+    bool deferComputation() override
+    {
+        return true;
+    }
+
 protected:
     boost::object_pool<Object> object_pool;
     std::vector<const SpottedObject *> spotted_objects;
 
-    void next(const Object *object) override
+    void next(PipelineContext *ctx, const Object *object) override
     {
-        PipelineNode<const Frame *, const Object *>::next(object);
+        PipelineNode<const Frame *, const Object *>::next(ctx, object);
         spotted_objects.push_back(object);
     }
 };
@@ -87,7 +92,7 @@ public:
     QRCodeSpotter();
 
 protected:
-    void process(const Frame *frame) override;
+    void process(const Frame *frame, PipelineContext *ctx) override;
 
 private:
 
@@ -104,7 +109,7 @@ public:
     FaceSpotter();
 
 protected:
-    void process(const Frame *frame) override;
+    void process(const Frame *frame, PipelineContext *ctx) override;
 
 
 private:
@@ -122,7 +127,7 @@ public:
                  int threshold = 60);
 
 protected:
-    void process(const Frame *frame) override;
+    void process(const Frame *frame, PipelineContext *ctx) override;
 
 private:
     cv::Mat mask;

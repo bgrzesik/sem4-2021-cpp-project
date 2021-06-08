@@ -7,9 +7,10 @@ add_executable(TriggerBox
         main.cpp
         Constants.cpp
         Spotters.cpp
-        Pipeline.cpp
+        PipelineContext.cpp
         FiltersNodes.cpp
         PipelineNode.cpp
+        SingleThreadedContext.cpp
         )
 
 

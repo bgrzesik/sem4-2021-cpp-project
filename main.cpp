@@ -8,7 +8,7 @@
 #include "Spotters.hpp"
 
 #include "PipelineNode.hpp"
-
+#include "SingleThreadedContext.hpp"
 
 class DebugDrawer: public tb::PipelineInputNode<const tb::SpottedObject *>
 {
@@ -21,7 +21,7 @@ public:
 protected:
     tb::Frame *frame;
 
-    void process(const tb::SpottedObject *object) override
+    void process(const tb::SpottedObject *object, tb::PipelineContext *ctx) override
     {
         const cv::Rect box(100, 100, 200, 200);
 
@@ -70,19 +70,20 @@ int main(int argc, char **argv)
 
     tb::Frame frame;
 
-    tb::BroadcasterNode<const tb::Frame *> framesNode;
+    auto context = tb::SingleThreadedContext();
+    auto framesNode = std::make_shared<tb::BroadcasterNode<const tb::Frame *>>();
     auto qr_spotter = std::make_shared<tb::QRCodeSpotter>();
     auto face_spotter = std::make_shared<tb::FaceSpotter>();
     auto color_spotter = std::make_shared<tb::ColorSpotter>(cv::Scalar(145, 60, 60), cv::Scalar(155, 255, 255));
     auto debug_drawer = std::make_shared<DebugDrawer>(&frame);
 
-    framesNode.outputsTo(qr_spotter);
-    framesNode.outputsTo(face_spotter);
-    framesNode.outputsTo(color_spotter);
+    auto sink = tb::broadcast<const tb::SpottedObject*>();
 
-    qr_spotter->outputsTo(debug_drawer);
-    face_spotter->outputsTo(debug_drawer);
-    color_spotter->outputsTo(debug_drawer);
+    framesNode | qr_spotter | sink;
+    framesNode | face_spotter | sink;
+    framesNode | color_spotter | sink;
+
+    sink | debug_drawer;
 
     auto last_frame = std::chrono::system_clock::now();
     long fps = 0;
@@ -102,13 +103,8 @@ int main(int argc, char **argv)
         }
 
 
-        framesNode.addPending(&frame);
-        framesNode.processPending();
-        qr_spotter->processPending();
-        face_spotter->processPending();
-        color_spotter->processPending();
+        context.process(framesNode, &frame);
 
-        debug_drawer->processPending();
 
         cv::rectangle(frame.rgb, box, tb::Colors::red, 0);
 
