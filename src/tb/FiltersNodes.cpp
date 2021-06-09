@@ -37,4 +37,16 @@ bool RectangleFilter::filter(const SpottedObject *object)
     }
 }
 
+AreaFilter::AreaFilter(int min_area, int max_area)
+    : min_area(min_area), max_area(max_area)
+{
+}
+
+bool AreaFilter::filter(const SpottedObject *object)
+{
+    cv::Rect bbox = cv::boundingRect(object->getPoints());
+    int area = bbox.area();
+    return this->min_area < area && area < this->max_area;
+}
+
 }

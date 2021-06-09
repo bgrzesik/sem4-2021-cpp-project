@@ -48,6 +48,20 @@ private:
     CollisionType type;
 };
 
+
+class AreaFilter : public FilterNode<const SpottedObject *> {
+
+public:
+    AreaFilter(int min_area, int max_area = std::numeric_limits<float>::max());
+
+protected:
+    bool filter(const SpottedObject *object) override;
+
+private:
+    int min_area;
+    int max_area;
+};
+
 }
 
 #endif //TRIGGERFILTERS_HPP
